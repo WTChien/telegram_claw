@@ -1,0 +1,41 @@
+.service-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 0.8rem;
+  margin-bottom: 1rem;
+}
+
+.service-card {
+  border: 1px solid rgba(33, 27, 20, 0.14);
+  border-radius: 14px;
+  padding: 0.8rem;
+  background: #fffdf7;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.service-card .name {
+  font-weight: 700;
+}
+
+.service-card .meta {
+  font-size: 0.9rem;
+  color: #4f4b43;
+}
+
+.service-card .status {
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.service-card .status.running {
+  color: #1d6636;
+}
+
+.service-card .status.stopped {
+  color: #8f2f28;
+}
+
+.service-card button {
+  justify-self: start;
+}

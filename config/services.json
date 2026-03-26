@@ -1,0 +1,22 @@
+{
+  "services": [
+    {
+      "name": "Ollama",
+      "port": 11434,
+      "category": "llm",
+      "description": "Local LLM inference"
+    },
+    {
+      "name": "LiteLLM",
+      "port": 5000,
+      "category": "llm",
+      "description": "LLM API gateway"
+    },
+    {
+      "name": "Node App",
+      "port": 3000,
+      "category": "app",
+      "description": "Node.js application"
+    }
+  ]
+}

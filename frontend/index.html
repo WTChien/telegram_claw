@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>nanoclaw Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,800&family=Space+Grotesk:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/css/styles.css" />
+    <link rel="stylesheet" href="/css/service-selector.css" />
+  </head>
+  <body>
+    <div class="background-glow"></div>
+    <header class="topbar">
+      <h1>nanoclaw</h1>
+      <p>一個面板，切換你本機的所有 AI 與應用服務</p>
+    </header>
+
+    <main class="layout">
+      <section class="panel">
+        <div class="section-title-row">
+          <h2>Service Selector</h2>
+          <button id="scanBtn" class="btn">掃描服務</button>
+        </div>
+
+        <div id="serviceCards" class="service-cards"></div>
+
+        <div class="current-service" id="currentServiceBox">
+          <h3>當前連接</h3>
+          <p id="currentServiceText">尚未連接服務</p>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Chat Relay</h2>
+        <div class="chat-controls">
+          <input id="chatModel" placeholder="模型名稱（可選）" />
+          <textarea id="chatMessage" rows="5" placeholder="輸入要轉發到當前服務的訊息"></textarea>
+          <button id="sendChatBtn" class="btn accent">發送訊息</button>
+        </div>
+        <pre id="chatOutput" class="output"></pre>
+      </section>
+
+      <section class="panel split">
+        <div>
+          <h2>Models</h2>
+          <button id="loadModelsBtn" class="btn">取得模型列表</button>
+          <ul id="modelsList" class="models-list"></ul>
+        </div>
+        <div>
+          <h2>Logs</h2>
+          <div id="logBox" class="log-box"></div>
+        </div>
+      </section>
+    </main>
+
+    <script type="module" src="/js/app.js"></script>
+  </body>
+</html>
