@@ -59,7 +59,11 @@ class OllamaClient:
         if not models:
             return "llama3.2"
         if prefer_vision:
-            vision = [m for m in models if any(k in m for k in ("llava", "vision", "gemma3", "minicpm"))]
+            vision = [
+                m
+                for m in models
+                if any(k in m.lower() for k in ("llava", "vision", "gemma3", "minicpm", "qwen"))
+            ]
             if vision:
                 return vision[0]
         return models[0]

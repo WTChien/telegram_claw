@@ -1,4 +1,5 @@
 import os
+import io
 
 from telegram import Update
 from telegram.ext import ContextTypes
@@ -20,8 +21,18 @@ async def cmd_screenshot(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     _ = context
     msg = await update.message.reply_text("截圖中...")
     try:
-        img_bytes = await computer.take_screenshot()
-        await update.message.reply_photo(photo=img_bytes, caption="目前螢幕截圖")
+        screenshots = await computer.take_screenshots()
+        total = len(screenshots)
+        for index, img_bytes in enumerate(screenshots, start=1):
+            await update.message.reply_document(
+                document=io.BytesIO(img_bytes),
+                filename=f"screenshot-display-{index}.png",
+                caption=(
+                    f"目前螢幕截圖 {index}/{total}"
+                    if total > 1
+                    else "目前螢幕截圖"
+                ),
+            )
         await msg.delete()
     except Exception as exc:
         await msg.edit_text(f"截圖失敗: {exc}")
@@ -89,9 +100,9 @@ async def cmd_control(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
     msg = await update.message.reply_text("截圖並分析中...")
     try:
-        img_bytes = await computer.take_screenshot()
+        screenshots = await computer.take_screenshots()
         model = await ollama_client.best_model(prefer_vision=True)
-        await msg.edit_text(f"截圖完成，正在用 {model} 分析...")
+        await msg.edit_text(f"截圖完成，共 {len(screenshots)} 張，正在用 {model} 分析...")
 
         prompt = (
             f"你是一個智慧型電腦控制助理，使用繁體中文回答。\n"
@@ -104,16 +115,19 @@ async def cmd_control(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         answer = await ollama_client.generate(
             model=model,
             prompt=prompt,
-            images=[img_bytes],
+            images=screenshots,
         )
         reply = answer if answer else "（模型無回應，請確認是否有安裝 vision 模型）"
         if len(reply) > 900:
             reply = reply[:900] + "\n...（已截斷）"
 
-        await update.message.reply_photo(
-            photo=img_bytes,
-            caption=f"**{model}** 分析結果:\n\n{reply}",
-        )
+        for index, img_bytes in enumerate(screenshots, start=1):
+            await update.message.reply_document(
+                document=io.BytesIO(img_bytes),
+                filename=f"control-display-{index}.png",
+                caption=f"分析用截圖 {index}/{len(screenshots)}",
+            )
+        await update.message.reply_text(f"{model} 分析結果:\n\n{reply}")
         await msg.delete()
     except Exception as exc:
         await msg.edit_text(

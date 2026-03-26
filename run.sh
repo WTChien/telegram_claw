@@ -7,6 +7,13 @@ cd "$(dirname "$0")"
 # 啟用虛擬環境
 source venv/bin/activate
 
+# 載入 .env（若存在），讓 API_PORT 等設定在腳本內一致可用
+if [ -f .env ]; then
+    set -a
+    source .env
+    set +a
+fi
+
 echo "=============================="
 echo "  nanoclaw 啟動中..."
 echo "=============================="
@@ -25,7 +32,7 @@ if ! kill -0 $API_PID 2>/dev/null; then
     exit 1
 fi
 
-echo "✅ 後端已啟動 (http://localhost:8000)"
+echo "✅ 後端已啟動 (http://localhost:${API_PORT:-8000})"
 echo ""
 
 # 啟動 Telegram Bot（前景執行，log 直接顯示）

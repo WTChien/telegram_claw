@@ -5,19 +5,21 @@ import httpx
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
 
-API_BASE_URL = os.getenv("NANOCLAW_API_BASE", "http://localhost:8000")
+
+def _api_base_url() -> str:
+    return os.getenv("NANOCLAW_API_BASE", "http://localhost:8000")
 
 
 async def _api_get(path: str) -> Dict[str, Any]:
     async with httpx.AsyncClient(timeout=20) as client:
-        response = await client.get(f"{API_BASE_URL}{path}")
+        response = await client.get(f"{_api_base_url()}{path}")
         response.raise_for_status()
         return response.json()
 
 
 async def _api_post(path: str, payload: Dict[str, Any]) -> Dict[str, Any]:
     async with httpx.AsyncClient(timeout=20) as client:
-        response = await client.post(f"{API_BASE_URL}{path}", json=payload)
+        response = await client.post(f"{_api_base_url()}{path}", json=payload)
         response.raise_for_status()
         return response.json()
 

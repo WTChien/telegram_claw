@@ -10,6 +10,8 @@ from telegram.ext import (
     ContextTypes,
 )
 
+load_dotenv()
+
 from telegram_bot.commands.services import (
     cmd_current,
     cmd_scan,
@@ -24,7 +26,6 @@ from telegram_bot.commands.control import (
     cmd_open,
 )
 
-load_dotenv()
 BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 
 
