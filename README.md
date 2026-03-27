@@ -64,6 +64,10 @@ python -m telegram_bot.bot
 - TELEGRAM_BOT_TOKEN: Telegram Bot token
 - ADMIN_USER_ID: Telegram 管理員 user id；未設定時不限制管理命令
 - KNOWN_SERVICES_JSON: 已知服務清單檔案，預設為 config/services.json
+- OLLAMA_CONNECT_TIMEOUT: 連線到 Ollama 的 timeout（秒）
+- OLLAMA_LIST_TIMEOUT: 讀取模型清單 timeout（秒）
+- OLLAMA_CHAT_TIMEOUT: /ask 使用的 chat timeout（秒）
+- OLLAMA_GENERATE_TIMEOUT: /control 使用的 generate timeout（秒）
 
 注意：
 

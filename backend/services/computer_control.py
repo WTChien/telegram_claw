@@ -55,13 +55,18 @@ class ComputerControl:
                 if display_id > 0:
                     cmd.extend(["-D", str(display_id)])
                 cmd.append(tmp_path)
-                subprocess.run(
+                result = subprocess.run(
                     cmd,
-                    check=True,
+                    check=False,
                     timeout=10,
                     stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
+                    stderr=subprocess.PIPE,
                 )
+                if result.returncode != 0:
+                    err = result.stderr.decode(errors="replace").strip()
+                    raise subprocess.CalledProcessError(
+                        result.returncode, cmd, stderr=err
+                    )
                 with open(tmp_path, "rb") as f:
                     return f.read()
             finally:
