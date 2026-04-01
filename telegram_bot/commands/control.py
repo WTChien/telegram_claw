@@ -1,13 +1,17 @@
+import asyncio
+import logging
 import os
 import io
 import re
-import time
 import traceback
 
 import httpx
 from telegram import Update
 from telegram.constants import ParseMode
+from telegram.error import BadRequest, RetryAfter
 from telegram.ext import ContextTypes
+
+logger = logging.getLogger(__name__)
 
 from backend.services.computer_control import computer
 from backend.services.ollama_client import ollama_client
@@ -72,16 +76,74 @@ def _sanitize_markdown_for_telegram(text: str) -> str:
 
         normalized_lines.append(line)
 
-    return "\n".join(normalized_lines)
+    # Close any unclosed code block so Telegram doesn't reject it
+    if in_code_block:
+        normalized_lines.append("```")
+
+    result = "\n".join(normalized_lines)
+    return _balance_inline_markers(result)
+
+
+def _balance_inline_markers(text: str) -> str:
+    """Escape the last unbalanced * or _ in each non-code line."""
+    lines = text.splitlines()
+    result_lines = []
+    in_code_block = False
+
+    for line in lines:
+        if line.strip().startswith("```"):
+            in_code_block = not in_code_block
+            result_lines.append(line)
+            continue
+
+        if in_code_block:
+            result_lines.append(line)
+            continue
+
+        # Split on inline code spans to avoid touching them
+        parts = re.split(r'(`[^`]*`)', line)
+        non_code = ''.join(p for i, p in enumerate(parts) if i % 2 == 0)
+
+        if non_code.count('*') % 2 != 0:
+            for i in range(len(parts) - 1, -1, -1):
+                if i % 2 == 0 and '*' in parts[i]:
+                    idx = parts[i].rfind('*')
+                    parts[i] = parts[i][:idx] + '\\*' + parts[i][idx + 1:]
+                    break
+
+        if non_code.count('_') % 2 != 0:
+            for i in range(len(parts) - 1, -1, -1):
+                if i % 2 == 0 and '_' in parts[i]:
+                    idx = parts[i].rfind('_')
+                    parts[i] = parts[i][:idx] + '\\_' + parts[i][idx + 1:]
+                    break
+
+        result_lines.append(''.join(parts))
+
+    return '\n'.join(result_lines)
 
 
 async def _safe_edit_text(msg, text: str) -> None:
+    """Edit a message, silently swallowing all Telegram errors."""
     text = _sanitize_markdown_for_telegram(text)
     safe_text = text[:3900] + "\n...（已截斷）" if len(text) > 3900 else text
     try:
         await msg.edit_text(safe_text, parse_mode=ParseMode.MARKDOWN)
-    except Exception:
-        await msg.edit_text(safe_text)
+    except RetryAfter as exc:
+        logger.warning("edit_text flood-control, skipping update (retry_after=%ss)", exc.retry_after)
+    except BadRequest:
+        # Markdown parse error – retry as plain text
+        try:
+            await msg.edit_text(safe_text)
+        except RetryAfter as exc:
+            logger.warning("edit_text (plain) flood-control, skipping update (retry_after=%ss)", exc.retry_after)
+        except Exception as exc:
+            logger.debug("edit_text (plain) failed: %s", exc)
+    except Exception as exc:
+        try:
+            await msg.edit_text(safe_text)
+        except Exception as inner:
+            logger.debug("edit_text fallback failed: %s", inner)
 
 
 async def _safe_reply_text(update: Update, text: str) -> None:
@@ -89,8 +151,18 @@ async def _safe_reply_text(update: Update, text: str) -> None:
     safe_text = text[:3900] + "\n...（已截斷）" if len(text) > 3900 else text
     try:
         await update.message.reply_text(safe_text, parse_mode=ParseMode.MARKDOWN)
+    except RetryAfter as exc:
+        logger.warning("reply_text flood-control (retry_after=%ss)", exc.retry_after)
+    except BadRequest:
+        try:
+            await update.message.reply_text(safe_text)
+        except Exception as exc:
+            logger.debug("reply_text (plain) failed: %s", exc)
     except Exception:
-        await update.message.reply_text(safe_text)
+        try:
+            await update.message.reply_text(safe_text)
+        except Exception as exc:
+            logger.debug("reply_text fallback failed: %s", exc)
 
 
 def _format_metrics(metrics: dict) -> str:
@@ -142,39 +214,12 @@ async def cmd_ask(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     msg = await update.message.reply_text("正在詢問 Ollama，請稍候...")
     try:
         selected_model = await ollama_client.best_model(prefer_vision=False)
-        partial_parts = []
-        last_flush_at = time.perf_counter()
-        last_flushed_length = 0
-        final_result = None
-
-        async for event in ollama_client.stream_chat(
+        result = await ollama_client.chat(
             model=selected_model,
             messages=[{"role": "user", "content": question}],
-        ):
-            if event.get("type") == "chunk":
-                partial_parts.append(event.get("content", ""))
-                current_text = "".join(partial_parts)
-                now = time.perf_counter()
-                should_flush = (
-                    len(current_text) - last_flushed_length >= 80
-                    or now - last_flush_at >= 1.0
-                )
-                if should_flush:
-                    preview = current_text + "\n\n_生成中..._"
-                    await _safe_edit_text(msg, preview)
-                    last_flush_at = now
-                    last_flushed_length = len(current_text)
-                continue
-
-            if event.get("type") == "done":
-                final_result = event
-                break
-
-        if final_result is None:
-            raise RuntimeError("Ollama stream ended without a final result")
-
-        answer = final_result.get("content", "")
-        metrics = final_result.get("metrics", {"model": selected_model})
+        )
+        answer = result.get("content", "")
+        metrics = result.get("metrics", {"model": selected_model})
         stats = _format_metrics(metrics)
 
         reply = f"{answer}\n\n---\n{stats}" if answer else f"（Ollama 無回應）\n\n---\n{stats}"
